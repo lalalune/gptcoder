@@ -11,6 +11,7 @@ if not os.path.exists("conversation_threads"):
 
 
 max_loop_count = 25
+max_threads = 10
 
 # Get the list of problem IDs from train_challenge
 problem_ids = list(train_challenge.keys())
@@ -121,13 +122,13 @@ def solve_challenge(problem_id, data):
 
         print(f"Problem {problem_id} was unsuccessful. Continuing loop...")
     if loop_count == max_loop_count:
-        print(f"Problem {problem_id} was unsuccessful after 10 loops. Moving to the next problem.")
+        print(f"Problem {problem_id} was unsuccessful after {max_loop_count} loops. Moving to the next problem.")
 
-# Process 10 challenges at a time
+# Process max_threads challenges at a time
 with ThreadPoolExecutor() as executor:
     futures = []
-    for batch_start in range(0, len(problem_ids), 10):
-        batch_end = min(batch_start + 10, len(problem_ids))
+    for batch_start in range(0, len(problem_ids), max_threads):
+        batch_end = min(batch_start + max_threads, len(problem_ids))
         batch_ids = problem_ids[batch_start:batch_end]
 
         for problem_id in batch_ids:

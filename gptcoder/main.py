@@ -1,9 +1,8 @@
 # Configuration
-
-max_loop_count = 10 # 5: just get me through the easy ones - 50: never give up, never surrender
-max_threads = 10 # 1 - slow but easy to read in the console, 50 - better have a high rate limit
+max_loop_count = 25 # 5: just get me through the easy ones - 50: never give up, never surrender
+max_threads = 5 # 1 - slow but easy to read in the console, 50 - better have a high rate limit
 use_claude = False # True - ask claude for help, False - don't ask claude for help
-models = ["gpt-3.5-turbo"] # ["gpt-4o", "gpt-4o-turbo"] - use 3.5 for cheap mode, alternating between 4o and 4-turbo is most likely to win
+models = ["gpt-4-turbo",  "gpt-4-turbo", "gpt-4-turbo", "gpt-4o"] # ["gpt-3.5-turbo"] - use 3.5 for cheap mode, alternating between 4o and 4-turbo is most likely to win
 
 from argparse import ArgumentParser
 parser = ArgumentParser()
@@ -15,10 +14,14 @@ parser.add_argument("--models", nargs="+", default=models)
 args = parser.parse_args()
 
 max_loop_count = args.max_loop_count
+max_threads = args.max_threads
+use_claude = args.use_claude
+models = args.models
 
 import json
 import os
 import numpy as np
+import numpy
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from gptcoder.eventhandler import EventHandler
@@ -114,6 +117,7 @@ def solve_challenge(problem_id, data):
         content = solve_problem(thread, context + "\n" + context_added)
 
         new_context = "Please now output the final solution for the problem in a single block of code, wrapped in a ```python``` block. Do not include any commentary or explanation in your response. The final solution should be a complete function called 'solve' that takes in a single matrix argument for input and outputs a single matrix argument for output. If you aren't sure of the best possible solution yet, just make your best guess for the program. Please only use numpy as an external dependency for your solution. Please include extremely detailed docstring comment describing the function and how it works on the problem, including the reasoning behind it. If relevant, make sure that it generalizes well to any token colors/IDs for the same problem."
+        
         content = solve_problem(thread, new_context)
 
         solution = extract_solution(content)
@@ -126,7 +130,7 @@ def solve_challenge(problem_id, data):
         solved, results, error = test_solution(problem_id, data)
 
         messages = client.beta.threads.messages.list(thread_id=thread.id)
-
+        model = np.random.choice(models) # randomly choose one model
         with open(f"conversation_threads/thread_{problem_id}.json", "w") as f:
             j = messages.json()
             json.dump(j, f, indent=2)
@@ -138,6 +142,9 @@ def solve_challenge(problem_id, data):
             os.makedirs("final_solves", exist_ok=True)
             with open(f"final_solves/solution_{problem_id}.py", "w") as f:
                 f.write(solution)
+                
+            # save to memory
+            create_memory("solves", solution, id=problem_id)
             break
         else:
             print(f"Problem {problem_id} was unsuccessful")

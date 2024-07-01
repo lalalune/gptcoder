@@ -26,7 +26,7 @@ def sort_key(item):
     challenge_id, data = item
     input_grid = data[0]['train'][0]['input']  # Assumes the structure includes a 'train' list with 'input'
     output_grid = data[0]['train'][0]['output']
-    return (len(input_grid) * len(input_grid[0]), len(output_grid) *  len(output_grid[0]))
+    return (len(input_grid) + len(input_grid[0]) + len(output_grid) + len(output_grid[0]))
 
 # Load the training challenge and solutions
 train_challenge = load_data("arc-prize-2024/arc-agi_training_challenges.json")

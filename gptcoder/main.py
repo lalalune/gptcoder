@@ -9,6 +9,9 @@ from .functions import test_solution, solve_problem, extract_solution, ask_claud
 if not os.path.exists("conversation_threads"):
     os.makedirs("conversation_threads", exist_ok=True)
 
+
+max_loop_count = 25
+
 # Get the list of problem IDs from train_challenge
 problem_ids = list(train_challenge.keys())
 
@@ -16,10 +19,13 @@ def solve_challenge(problem_id, data):
     thread = client.beta.threads.create()
     init_context = ""
     if os.path.exists(f"final_solves/solution_{problem_id}.py"):
+        print(f"Problem {problem_id} already solved")
         solved, test_results, error = test_solution(problem_id, data)
         if solved:
-            print(f"Problem {problem_id} already solved")
+            print(f"Problem {problem_id} was correctly solved")
             return
+        else:
+            print(f"Problem {problem_id} was not solved correct. Re-solving...")
 
         init_context = "It seems that the solution for this problem is not correct. Let's try to solve it again. Here are the results from the last attempt:\n"
         for i, result in enumerate(test_results):
@@ -50,10 +56,10 @@ def solve_challenge(problem_id, data):
     context_added = "\nFind a generalized solution that correctly transforms all inputs to all outputs for the examples and will also work on further unseen examples. Verify your results with code interpreter. Keep working on it until you have the correct function. Ideally the function is named solve, takes one matrix input and one matrix output."
 
     loop_count = 0
-    while loop_count < 10:
+    while loop_count < max_loop_count:
         print(f"SOLVING PROBLEM {problem_id} - Loop {loop_count + 1}")
 
-        models = ["gpt-3.5-turbo"]  # ["gpt-4o", "gpt-4o-turbo"]
+        models = ["gpt-4o", "gpt-4o-turbo"]
         # randomly choose one model
         model = np.random.choice(models)
         print("Using model:", model)
@@ -114,7 +120,8 @@ def solve_challenge(problem_id, data):
             loop_count += 1
 
         print(f"Problem {problem_id} was unsuccessful. Continuing loop...")
-    print(f"Problem {problem_id} was unsuccessful after 10 loops. Moving to the next problem.")
+    if loop_count == max_loop_count:
+        print(f"Problem {problem_id} was unsuccessful after 10 loops. Moving to the next problem.")
 
 # Process 10 challenges at a time
 with ThreadPoolExecutor() as executor:

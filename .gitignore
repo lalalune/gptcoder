@@ -17,3 +17,5 @@ projects/
 *.midi
 build/
 dist/
+solves/
+conversation_threads/

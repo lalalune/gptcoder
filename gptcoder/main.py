@@ -12,9 +12,13 @@ from .examples import examples
 
 if not os.path.exists("conversation_threads"):
     os.makedirs("conversation_threads", exist_ok=True)
+    
+if not os.path.exists("solves"):
+    os.makedirs("solves", exist_ok=True)
 
 max_loop_count = 25 # 5: just get me through the easy ones - 50: never give up, never surrender
 max_threads = 1 # 1 - slow but easy to read in the console, 50 - better have a high rate limit
+use_claude = False # True - ask claude for help, False - don't ask claude for help
 
 from agentmemory import create_memory, search_memory
 
@@ -24,7 +28,8 @@ for i, example in enumerate(examples):
         create_memory("examples", example, id=i)
         print(f"Example {example} added to memory")
     else:
-        print(f"Example {example} already in memory")
+        # print(f"Example {example} already in memory")
+        pass
         
 # read all .py files in final_solves as txt and add them to memory if they arent already in "solves"
 for file in os.listdir("final_solves"):
@@ -37,7 +42,8 @@ for file in os.listdir("final_solves"):
                 create_memory("solves", content, id=problem_id)
                 print(f"Solution for problem {problem_id} added to memory")
         else:
-            print(f"Solution for problem {problem_id} already in memory")
+            # print(f"Solution for problem {problem_id} already in memory")
+            pass
 
 # Get the list of problem IDs from train_challenge
 problem_ids = list(train_challenge.keys())
@@ -99,6 +105,7 @@ def solve_challenge(problem_id, data):
 
         solution = extract_solution(content)
         print(f"Solution found for problem {problem_id}")
+        print(solution)
 
         with open(f"solves/solution_{problem_id}.py", "w") as f:
             f.write(solution)
@@ -108,7 +115,7 @@ def solve_challenge(problem_id, data):
         messages = client.beta.threads.messages.list(thread_id=thread.id)
 
         with open(f"conversation_threads/thread_{problem_id}.json", "w") as f:
-            j = messages.data.json()
+            j = messages.json()
             json.dump(j, f, indent=2)
 
         if solved:
@@ -131,6 +138,41 @@ def solve_challenge(problem_id, data):
             # Ask Claude for help 25% of the time - basically to unstuck the bot
             rdm = np.random.random()
             if rdm < 0.1:
+                memories = search_memory("examples", search_content, n_results=3)
+                # randomly pick one memory
+                memory = np.random.choice(memories)
+                response = "I'm having trouble solving this problem. Here's an example of another solved puzzle that might help:\n" + memory["content"]
+                message = client.beta.threads.messages.create(
+                    thread_id=thread.id,
+                    role="user",
+                    content=response,
+                )
+                
+                with client.beta.threads.runs.create_and_stream(
+                    thread_id=thread.id, assistant_id=assistant.id, event_handler=EventHandler(thread.id, assistant.id),
+                ) as stream:
+                    stream.until_done()
+            elif rdm < 0.2:
+                memories = search_memory("solves", search_content, n_results=3)
+                # randomly pick one memory
+                memory = np.random.choice(memories)
+                problem_id = memory['id']
+                inputs = train_challenge[problem_id]["train"]
+                formatted_inputs = ""
+                for i, pair in enumerate(inputs):
+                    formatted_inputs += f"Input {i + 1}:\n" + '\n'.join(map(str, pair['input'])) + "\n" + f"Output {i + 1}:\n" + '\n'.join(map(str, pair['output'])) + "\n\n"
+                response = "I'm having trouble solving this problem. Here's an example of another solution to a different puzzle. It isn't going to be the right answer, but maybe there are some good ideas there?:\n" + memory["content"] +"\n\nHere are the input/output pairs for the problem:\n" + formatted_inputs
+                message = client.beta.threads.messages.create(
+                    thread_id=thread.id,
+                    role="user",
+                    content=response,
+                )
+                
+                with client.beta.threads.runs.create_and_stream(
+                    thread_id=thread.id, assistant_id=assistant.id, event_handler=EventHandler(thread.id, assistant.id),
+                ) as stream:
+                    stream.until_done()
+            elif use_claude and rdm < 0.3:
                 claude_context = context
                 for result in results:
                     claude_context += f"Test:\nInput:\n" + '\n'.join(map(str, result["input"])) + "\nOutput:\n" + '\n'.join(map(str, result["output"])) + "\nExpected Output:\n" + '\n'.join(map(str, result["expected_output"])) + "\n\n"
@@ -156,42 +198,6 @@ def solve_challenge(problem_id, data):
                 ) as stream:
                     stream.until_done()
                 
-            elif rdm < 0.2:
-                memories = search_memory("examples", search_content, n_results=3)
-                # randomly pick one memory
-                memory = np.random.choice(memories)
-                response = "I'm having trouble solving this problem. Here's an example of another solved puzzle that might help:\n" + memory["content"]
-                message = client.beta.threads.messages.create(
-                    thread_id=thread.id,
-                    role="user",
-                    content=response,
-                )
-                
-                with client.beta.threads.runs.create_and_stream(
-                    thread_id=thread.id, assistant_id=assistant.id, event_handler=EventHandler(thread.id, assistant.id),
-                ) as stream:
-                    stream.until_done()
-            elif rdm < 0.3:
-                memories = search_memory("solves", search_content, n_results=3)
-                # randomly pick one memory
-                memory = np.random.choice(memories)
-                problem_id = memory['id']
-                inputs = train_challenge[problem_id]["train"]
-                formatted_inputs = ""
-                for i, pair in enumerate(inputs):
-                    formatted_inputs += f"Input {i + 1}:\n" + '\n'.join(map(str, pair['input'])) + "\n" + f"Output {i + 1}:\n" + '\n'.join(map(str, pair['output'])) + "\n\n"
-                response = "I'm having trouble solving this problem. Here's an example of another solution to a different puzzle. It isn't going to be the right answer, but maybe there are some good ideas there?:\n" + memory["content"] +"\n\nHere are the input/output pairs for the problem:\n" + formatted_inputs
-                message = client.beta.threads.messages.create(
-                    thread_id=thread.id,
-                    role="user",
-                    content=response,
-                )
-                
-                with client.beta.threads.runs.create_and_stream(
-                    thread_id=thread.id, assistant_id=assistant.id, event_handler=EventHandler(thread.id, assistant.id),
-                ) as stream:
-                    stream.until_done()
-
             loop_count += 1
 
         print(f"Problem {problem_id} was unsuccessful. Continuing loop...")

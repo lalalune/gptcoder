@@ -198,7 +198,6 @@ def test_extract_solution():
         print("extract_solution passed.")
     else:
         print("extract_solution failed.")
-    print()
 
 if __name__ == "__main__":
     test_test_solution()

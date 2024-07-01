@@ -8,7 +8,7 @@ claude = Anthropic(
     api_key=os.environ["CLAUDE_API_KEY"]
 )
 
-instructions = "You are solving the ARC AGI challenge by writing python programs which correctly transform all inputs to all outputs for the examples. The examples are in the form of an input grid and output grid. The goal is to figure out the function that successfully maps all inputs to otheir corresponding outputs, such that a new output could be guessed from a new input. You should use code interpreter to test the python code that you create and verify that it works on all of the input and output examples. It should assert an error if it doesn't."
+instructions = "You are solving the ARC AGI challenge by writing python programs which correctly and generally transform all inputs to all outputs for the examples, and can do so for any additional unseen examples as well. The examples are in the form of an input grid and output grid. The goal is to figure out the function that successfully maps all inputs to otheir corresponding outputs, such that a new output could be guessed from a new input. You should use code interpreter to test the python code that you create and verify that it works on all of the input and output examples. It should assert an error if it doesn't."
 
 # Create the assistant
 assistant = client.beta.assistants.create(

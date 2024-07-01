@@ -1,3 +1,21 @@
+# Configuration
+
+max_loop_count = 10 # 5: just get me through the easy ones - 50: never give up, never surrender
+max_threads = 10 # 1 - slow but easy to read in the console, 50 - better have a high rate limit
+use_claude = False # True - ask claude for help, False - don't ask claude for help
+models = ["gpt-3.5-turbo"] # ["gpt-4o", "gpt-4o-turbo"] - use 3.5 for cheap mode, alternating between 4o and 4-turbo is most likely to win
+
+from argparse import ArgumentParser
+parser = ArgumentParser()
+parser.add_argument("--max_loop_count", type=int, default=max_loop_count)
+parser.add_argument("--max_threads", type=int, default=max_threads)
+parser.add_argument("--use_claude", type=bool, default=use_claude)
+# models is an array of strings
+parser.add_argument("--models", nargs="+", default=models)
+args = parser.parse_args()
+
+max_loop_count = args.max_loop_count
+
 import json
 import os
 import numpy as np
@@ -15,10 +33,6 @@ if not os.path.exists("conversation_threads"):
     
 if not os.path.exists("solves"):
     os.makedirs("solves", exist_ok=True)
-
-max_loop_count = 25 # 5: just get me through the easy ones - 50: never give up, never surrender
-max_threads = 1 # 1 - slow but easy to read in the console, 50 - better have a high rate limit
-use_claude = False # True - ask claude for help, False - don't ask claude for help
 
 from agentmemory import create_memory, search_memory
 
@@ -92,7 +106,6 @@ def solve_challenge(problem_id, data):
     while loop_count < max_loop_count:
         print(f"SOLVING PROBLEM {problem_id} - Loop {loop_count + 1}")
 
-        models = ["gpt-3.5-turbo"] # ["gpt-4o", "gpt-4o-turbo"]
         # randomly choose one model
         model = np.random.choice(models)
         print("Using model:", model)
